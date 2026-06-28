@@ -1,0 +1,64 @@
+server:
+  port: 8080
+  address: 0.0.0.0
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, info
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vista
+    username: postgres
+    password: postgres
+  threads:
+    virtual:
+      enabled: true
+  mongodb:
+      uri: mongodb://localhost:27017/vista_stats
+  ai:
+    chat:
+      observations:
+        log-prompt: true
+        log-completion: true
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: gpt-oss:20b   # default; overridden per request
+      embedding:
+        model: nomic-embed-text
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY}
+      chat:
+        model: claude-sonnet-4-6
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768
+    mcp:
+      server:
+        name: vista-mcp-server
+        version: 0.0.1
+        protocol: STREAMABLE
+        type: SYNC
+        streamable-http:
+          mcp-endpoint: /mcp
+
+logging:
+  level:
+    org:
+      springframework:
+        ai: DEBUG
+    com:
+      vista: DEBUG
+      
+vista:
+  monitor:
+    model: gptoss          # use a local model for background polling
+    interval-seconds: 60
+    auto-start: false      # start manually via /api/monitor/start
+    rxmer-floor: 32.0
+    flap-ceiling: 8
+    t3-ceiling: 3

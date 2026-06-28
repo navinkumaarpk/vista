@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>VISTA — Triage Monitoring</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100vh; overflow:hidden; }
+    body { font-family: Arial, sans-serif; background:#eef1f5; color:#1a1a1a; }
+    .wrap { display:flex; height:100vh; padding:16px; gap:14px; }
+    .main { flex:1 1 auto; min-width:0; height:100%; background:#fff; border-radius:12px;
+            box-shadow:0 2px 14px rgba(0,0,0,0.08); display:flex; flex-direction:column; overflow:hidden; }
+    .main > header { background:#1F4E79; color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+    .main > header h1 { font-size:17px; margin:0; letter-spacing:0.5px; }
+    .content { flex:1; overflow-y:auto; padding:24px 28px; }
+    .section { margin-bottom:28px; max-width:760px; }
+    .section h2 { font-size:13px; color:#1F4E79; text-transform:uppercase; letter-spacing:0.6px; margin:0 0 12px; }
+    .btnrow { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    button { border:0; border-radius:8px; padding:10px 18px; cursor:pointer; font-size:14px; color:#fff; }
+    .start { background:#2e7d32; } .stop { background:#c62828; } .run { background:#1F4E79; } .setbtn { background:#555; }
+    input[type=number] { padding:9px; border-radius:8px; border:1px solid #ccc; width:130px; font-size:14px; }
+    table { border-collapse:collapse; width:100%; }
+    td { padding:10px 12px; border-bottom:1px solid #eee; font-size:14px; }
+    td.label { color:#666; width:170px; }
+    .dot { display:inline-block; width:13px; height:13px; border-radius:50%; margin-right:9px; vertical-align:middle; }
+    .dot.active { background:#2e7d32; box-shadow:0 0 7px #2e7d32; }
+    .dot.stopped { background:#c62828; }
+    textarea { width:100%; height:240px; font-family:monospace; font-size:12px; padding:12px;
+               border-radius:8px; border:1px solid #ccc; resize:vertical; background:#fafafa; }
+    .iconbtn { background:#16365c; color:#fff; border:0; border-radius:6px; padding:7px 12px; cursor:pointer; font-size:13px; }
+    a { color:#cfe0f5; font-size:12px; text-decoration:none; }
+    .logs { flex:none; width:0; height:100%; opacity:0; overflow:hidden; background:#0f1722; color:#cfe3ff;
+            border-radius:12px; font-family:monospace; font-size:12px; display:flex; flex-direction:column;
+            transition: width 0.25s ease, opacity 0.2s ease; }
+    .logs.open { width:460px; opacity:1; }
+    .logs header { background:#16202e; padding:12px 16px; color:#8fb8ef; display:flex; justify-content:space-between; align-items:center; }
+    #logbody { flex:1; overflow-y:auto; padding:12px 16px; }
+    .logline { margin:2px 0; white-space:pre-wrap; word-break:break-word; }
+    .logline.INFO{color:#cfe3ff;} .logline.DEBUG{color:#7f9cc0;} .logline.WARN{color:#f0c674;} .logline.ERROR{color:#ff8080;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="main">
+      <header>
+        <h1>VISTA — Triage Monitoring</h1>
+        <div>
+          <a href="/">&larr; Chat</a>
+          <button class="iconbtn" id="logToggle" onclick="toggleLogs()" style="margin-left:12px;">Agent Logs</button>
+        </div>
+      </header>
+      <div class="content">
+
+        <div class="section">
+          <h2>Controls</h2>
+          <div class="btnrow">
+            <button class="start" onclick="startMon()">Start</button>
+            <button class="stop" onclick="stopMon()">Stop</button>
+            <button class="run" onclick="runOnce()">Run Once</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Polling Interval</h2>
+          <div class="btnrow">
+            <input type="number" id="interval" min="1" step="1" placeholder="seconds"/>
+            <button class="setbtn" onclick="applyInterval()">Set Interval</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Status</h2>
+          <table>
+            <tr><td class="label">Monitoring</td><td><span class="dot stopped" id="dot"></span><span id="state">—</span></td></tr>
+            <tr><td class="label">Interval</td><td id="st-interval">—</td></tr>
+            <tr><td class="label">Model</td><td id="st-model">—</td></tr>
+            <tr><td class="label">Last Run</td><td id="st-lastrun">—</td></tr>
+            <tr><td class="label">Findings</td><td id="st-findings">—</td></tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Findings</h2>
+          <textarea id="findings" readonly placeholder="Proactive findings will appear here..."></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="logs" id="logs">
+      <header>
+        <span>Agent activity (live)</span>
+        <button class="iconbtn" onclick="clearLogs()" style="background:#26384d;color:#cfe3ff;">clear</button>
+      </header>
+      <div id="logbody"></div>
+    </div>
+  </div>
+
+  <script>
+    async function startMon(){ await fetch('/api/monitor/start',{method:'POST'}); refresh(); }
+    async function stopMon(){ await fetch('/api/monitor/stop',{method:'POST'}); refresh(); }
+    async function runOnce(){
+      document.getElementById('findings').value='Running poll cycle...';
+      await fetch('/api/monitor/run',{method:'POST'}); refresh();
+    }
+    async function applyInterval(){
+      const raw=document.getElementById('interval').value.trim();
+      const n=parseInt(raw,10);
+      if(!Number.isInteger(n) || n<1 || String(n)!==raw){
+        alert('Interval must be a positive whole number (seconds).'); return;
+      }
+      await fetch('/api/monitor/interval',{method:'POST',
+        headers:{'Content-Type':'application/json'}, body:JSON.stringify({seconds:n})});
+      refresh();
+    }
+    async function loadStatus(){
+      try{
+        const s=await (await fetch('/api/monitor/status')).json();
+        document.getElementById('dot').className='dot '+(s.enabled?'active':'stopped');
+        document.getElementById('state').textContent=s.enabled?'Active':'Stopped';
+        document.getElementById('st-interval').textContent=s.intervalSeconds+' s';
+        document.getElementById('st-model').textContent=s.model;
+        document.getElementById('st-lastrun').textContent=(s.lastRun==='null')?'never':s.lastRun;
+        document.getElementById('st-findings').textContent=s.findingsCount;
+      }catch(e){}
+    }
+    async function loadFindings(){
+      try{
+        const list=await (await fetch('/api/monitor/findings')).json();
+        const f=document.getElementById('findings');
+        f.value = list.length ? list.map(x =>
+          `[${x.detectedAt}] ${x.serviceGroup} -> ${x.classification} (conf ${x.confidence}, approval=${x.requiresApproval})\n`+
+          `   screening: ${x.screeningReason}\n   action: ${x.recommendedAction}`
+        ).join('\n\n') : 'No findings yet.';
+      }catch(e){}
+    }
+    function refresh(){ loadStatus(); loadFindings(); }
+
+    let evtSource=null;
+    function toggleLogs(){
+      const p=document.getElementById('logs'), b=document.getElementById('logToggle');
+      const open=!p.classList.contains('open');
+      p.classList.toggle('open',open);
+      b.textContent=open?'Hide Logs':'Agent Logs';
+      if(open) openStream(); else closeStream();
+    }
+    function openStream(){
+      if(evtSource) return;
+      evtSource=new EventSource('/api/logs/stream');
+      evtSource.onmessage=(e)=>{
+        const body=document.getElementById('logbody');
+        const level=(e.data.split(' ')[0]||'INFO');
+        const line=document.createElement('div');
+        line.className='logline '+level; line.textContent=e.data;
+        body.appendChild(line); body.scrollTop=body.scrollHeight;
+      };
+    }
+    function closeStream(){ if(evtSource){evtSource.close();evtSource=null;} }
+    function clearLogs(){ document.getElementById('logbody').innerHTML=''; }
+
+    refresh();
+    window.setInterval(refresh, 5000);   // keep status + findings live
+  </script>
+</body>
+</html>
