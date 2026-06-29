@@ -76,6 +76,7 @@
             <tr><td class="label">Model</td><td id="st-model">—</td></tr>
             <tr><td class="label">Last Run</td><td id="st-lastrun">—</td></tr>
             <tr><td class="label">Findings</td><td id="st-findings">—</td></tr>
+            <tr><td class="label">Last Sweep</td><td id="st-sweep">—</td></tr>
           </table>
         </div>
 
@@ -122,6 +123,7 @@
         document.getElementById('st-model').textContent=s.model;
         document.getElementById('st-lastrun').textContent=(s.lastRun==='null')?'never':s.lastRun;
         document.getElementById('st-findings').textContent=s.findingsCount;
+        document.getElementById('st-sweep').textContent = s.lastSweep || '—';
       }catch(e){}
     }
     async function loadFindings(){
@@ -129,8 +131,8 @@
         const list=await (await fetch('/api/monitor/findings')).json();
         const f=document.getElementById('findings');
         f.value = list.length ? list.map(x =>
-          `[${x.detectedAt}] ${x.serviceGroup} -> ${x.classification} (conf ${x.confidence}, approval=${x.requiresApproval})\n`+
-          `   screening: ${x.screeningReason}\n   action: ${x.recommendedAction}`
+          `[${x.severity}] ${x.serviceGroup} -> ${x.classification} (conf ${x.confidence}, approval=${x.requiresApproval})\n`+
+          `   when: ${x.detectedAt}\n   screening: ${x.screeningReason}\n   action: ${x.recommendedAction}`
         ).join('\n\n') : 'No findings yet.';
       }catch(e){}
     }

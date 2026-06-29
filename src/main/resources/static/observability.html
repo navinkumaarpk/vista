@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>VISTA — Observability</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin:0; min-height:100vh; }
+    body { font-family: Arial, sans-serif; background:#eef1f5; color:#1a1a1a; }
+    .top { background:#1F4E79; color:#fff; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; }
+    .top h1 { font-size:18px; margin:0; }
+    .top a { color:#cfe0f5; font-size:12px; text-decoration:none; margin-left:14px; }
+    .content { padding:28px; max-width:1100px; margin:0 auto; }
+    .lead { color:#555; font-size:15px; margin:0 0 24px; line-height:1.5; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:30px; }
+    .card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+    .card .num { font-size:30px; font-weight:bold; color:#1F4E79; }
+    .card .lbl { color:#666; font-size:13px; margin-top:6px; }
+    .card .hint { color:#999; font-size:11px; margin-top:8px; line-height:1.4; }
+    h2 { font-size:14px; color:#1F4E79; text-transform:uppercase; letter-spacing:0.6px; margin:30px 0 14px; }
+    table { border-collapse:collapse; width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+    th,td { padding:11px 14px; text-align:left; font-size:14px; border-bottom:1px solid #eee; }
+    th { background:#f2f7fd; color:#1F4E79; }
+    .bar { height:10px; background:#e3e8ef; border-radius:5px; overflow:hidden; }
+    .bar > span { display:block; height:100%; background:#2e7d32; }
+    .muted { color:#888; font-size:13px; }
+    .refresh { background:#1F4E79; color:#fff; border:0; border-radius:8px; padding:8px 16px; cursor:pointer; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <h1>VISTA — Observability</h1>
+    <div>
+      <a href="/">Chat</a>
+      <a href="/monitoring.html">Triage Monitoring</a>
+      <button class="refresh" onclick="load()">Refresh</button>
+    </div>
+  </div>
+  <div class="content">
+    <p class="lead">A plain-language view of how VISTA is working: how much it's thinking,
+       how fast it responds, how often it asks a human for help, and how well-calibrated
+       its confidence is against real outcomes.</p>
+
+    <h2>Model Activity</h2>
+    <div class="grid">
+      <div class="card"><div class="num" id="calls">—</div><div class="lbl">AI calls made</div>
+        <div class="hint">Each time VISTA asked a language model to reason.</div></div>
+      <div class="card"><div class="num" id="avgms">—</div><div class="lbl">Avg response time (ms)</div>
+        <div class="hint">How long the model takes to answer, on average.</div></div>
+      <div class="card"><div class="num" id="tokens">—</div><div class="lbl">Total tokens used</div>
+        <div class="hint">A rough measure of how much text was processed — and of cost.</div></div>
+    </div>
+
+    <h2>Agent Decisions</h2>
+    <div class="grid">
+      <div class="card"><div class="num" id="triages">—</div><div class="lbl">Triages run</div>
+        <div class="hint">Total service-group investigations completed.</div></div>
+      <div class="card"><div class="num" id="grounded">—</div><div class="lbl">Grounded in evidence</div>
+        <div class="hint">Share backed by similar past cases, not guesswork.</div></div>
+      <div class="card"><div class="num" id="approval">—</div><div class="lbl">Sent to a human</div>
+        <div class="hint">Share routed to an engineer for review or approval.</div></div>
+      <div class="card"><div class="num" id="escalation">—</div><div class="lbl">Escalated</div>
+        <div class="hint">Share where VISTA wasn't confident enough to act alone.</div></div>
+    </div>
+
+    <h2>Confidence Calibration</h2>
+    <p class="muted" id="calib-note">When VISTA says it's 80% sure, is it right about 80% of the time?
+       This compares stated confidence against confirmed outcomes. Outcomes can take hours or days
+       to confirm, so this covers only resolved cases.</p>
+    <table>
+      <thead><tr><th>Confidence band</th><th>Resolved cases</th><th>Actually correct</th><th>How well it lines up</th></tr></thead>
+      <tbody id="calib-body"></tbody>
+    </table>
+    <p class="muted" id="calib-summary"></p>
+  </div>
+
+  <script>
+    function pct(x){ return (x*100).toFixed(0) + '%'; }
+
+    async function load(){
+      let d;
+      try { d = await (await fetch('/api/observability/summary')).json(); }
+      catch(e){ return; }
+
+      const m = d.modelUsage || {};
+      document.getElementById('calls').textContent = m.totalModelCalls ?? '0';
+      document.getElementById('avgms').textContent = m.avgResponseMs ?? '0';
+      document.getElementById('tokens').textContent = (m.totalTokens ?? 0).toLocaleString();
+
+      const a = d.agentDecisions || {};
+      document.getElementById('triages').textContent = a.totalTriages ?? '0';
+      document.getElementById('grounded').textContent = a.groundednessRate!=null ? pct(a.groundednessRate) : '—';
+      document.getElementById('approval').textContent = a.humanApprovalRate!=null ? pct(a.humanApprovalRate) : '—';
+      document.getElementById('escalation').textContent = a.escalationRate!=null ? pct(a.escalationRate) : '—';
+
+      const c = d.calibration || {};
+      const body = document.getElementById('calib-body');
+      body.innerHTML = '';
+      (c.buckets||[]).forEach(b => {
+        if (b.count === 0) return;
+        const diff = Math.abs((b.avgConfidence||0) - (b.accuracy||0));
+        const align = Math.max(0, 1 - diff);  // 1.0 = perfectly calibrated
+        body.innerHTML += `<tr>
+          <td>${b.band}</td>
+          <td>${b.count}</td>
+          <td>${pct(b.accuracy||0)}</td>
+          <td><div class="bar"><span style="width:${(align*100).toFixed(0)}%"></span></div></td>
+        </tr>`;
+      });
+      if (!body.innerHTML) body.innerHTML = '<tr><td colspan="4" class="muted">No resolved cases yet.</td></tr>';
+
+      const resolved = c.resolvedPredictions ?? 0, pending = c.pendingPredictions ?? 0;
+      document.getElementById('calib-summary').textContent =
+        `${resolved} case(s) confirmed so far, ${pending} still awaiting confirmation.` +
+        (c.expectedCalibrationError!=null ? ` Overall calibration error: ${(c.expectedCalibrationError*100).toFixed(1)}%.` : '');
+    }
+
+    load();
+    window.setInterval(load, 10000);
+  </script>
+</body>
+</html>

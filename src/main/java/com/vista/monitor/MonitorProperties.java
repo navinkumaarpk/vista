@@ -10,6 +10,7 @@ public class MonitorProperties {
     private double rxmerFloor = 32.0;
     private double flapCeiling = 8;
     private double t3Ceiling = 3;
+    private long dedupCooldownSeconds = 300;
 
     public String getModel() { return model; }
     public void setModel(String v) { this.model = v; }
@@ -23,4 +24,7 @@ public class MonitorProperties {
     public void setFlapCeiling(double v) { this.flapCeiling = v; }
     public double getT3Ceiling() { return t3Ceiling; }
     public void setT3Ceiling(double v) { this.t3Ceiling = v; }
+    public long getDedupCooldownSeconds() { return dedupCooldownSeconds; }
+    public void setDedupCooldownSeconds(long dedupCooldownSeconds) {this.dedupCooldownSeconds = dedupCooldownSeconds;}
+    
 }

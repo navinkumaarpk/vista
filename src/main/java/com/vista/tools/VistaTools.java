@@ -30,10 +30,13 @@ public class VistaTools {
         return store.allTickets();
     }
 
+    // we won't be doing this at scale
     @Tool(description = "List all stats records (RxMER, flap counts, T3/T4 timeouts) for all service groups.")
     @McpTool(description = "List all stats records (RxMER, flap counts, T3/T4 timeouts) for all service groups.")
     public List<StatsRecord> listStats() {
-        return store.allStats();
+        return statsRepo.findAll().stream()
+            .map(d -> new StatsRecord(d.serviceGroup(), d.cmMac(), d.timestamp(), d.metrics()))
+            .toList();
     }
 
     @Tool(description = "Get the most recent stats records (RxMER, flap counts, T3/T4 timeouts) for a given service group.")

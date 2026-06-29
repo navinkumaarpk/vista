@@ -38,21 +38,6 @@ public class IngestionController
         return ResponseEntity.ok(Map.of("status", "accepted", "ticketId", stamped.ticketId()));
     }
 
-    @PostMapping("/stats")
-    public ResponseEntity<Map<String, Object>> ingestStats(@RequestBody StatsRecord stats) {
-        StatsRecord stamped = new StatsRecord(
-                stats.serviceGroup(),
-                stats.cmMac(),
-                stats.timestamp() != null ? stats.timestamp() : Instant.now(),
-                stats.metrics()
-        );
-        store.addStats(stamped);
-        return ResponseEntity.ok(Map.of("status", "accepted", "serviceGroup", stamped.serviceGroup()));
-    }
-
     @GetMapping("/tickets")
     public List<Ticket> tickets() { return store.allTickets(); }
-
-    @GetMapping("/stats")
-    public List<StatsRecord> stats() { return store.allStats(); }
 }

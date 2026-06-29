@@ -39,14 +39,22 @@ public class MonitorController {
 
     @GetMapping("/status")
     public Map<String, Object> status() {
+        var sweep = monitor.getLastSweep();
         return Map.of(
-                "enabled", monitor.isEnabled(),
-                "intervalSeconds", monitor.getIntervalSeconds(),
-                "model", monitor.getModel(),
-                "lastRun", String.valueOf(monitor.getLastRun()),
-                "findingsCount", monitor.getFindings().size());
-    }
+            "enabled", monitor.isEnabled(),
+            "intervalSeconds", monitor.getIntervalSeconds(),
+            "model", monitor.getModel(),
+            "lastRun", String.valueOf(monitor.getLastRun()),
+            "findingsCount", monitor.getFindings().size(),
+            "lastSweep", sweep == null ? "never" :
+                String.format("%d scanned, %d degraded, %d raised",
+                        sweep.groupsScanned(), sweep.degraded(), sweep.findingsRaised()));
+}
+
 
     @GetMapping("/findings")
     public List<MonitorFinding> findings() { return monitor.getFindings(); }
+
+    @GetMapping("/sweep")
+    public MonitorSweep lastSweep() { return monitor.getLastSweep(); }
 }
