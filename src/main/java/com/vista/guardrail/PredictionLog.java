@@ -37,7 +37,7 @@ public class PredictionLog {
                 .filter(p -> p.resolved && p.correct != null).toList();
         long pending = predictions.values().stream().filter(p -> !p.resolved).count();
 
-        double[] edges = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0001};
+        double[] edges = {0.0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0001};
         List<Map<String, Object>> buckets = new ArrayList<>();
         int n = resolved.size();
         double ece = 0.0;
