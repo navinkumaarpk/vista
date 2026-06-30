@@ -2,8 +2,8 @@
 
 An agentic AI system for vCMTS / cable broadband NOC operations. VISTA runs two
 tracks: reactive triage of service-group issues on demand, and proactive
-forecasting via a scheduled Monitor agent. It reasons with a Tree-of-Thought beam
-search, grounds classifications with RAG over a pgvector store, and operates
+forecasting via a scheduled Monitor agent. It reasons with a Tree-of-Thought
+beam search, grounds classifications with RAG over a pgvector store, and operates
 inside a safety envelope (guardrails, human-review gates, metrics).
 
 ## Stack
@@ -19,13 +19,18 @@ inside a safety envelope (guardrails, human-review gates, metrics).
 - Env var `ANTHROPIC_API_KEY` for the Claude option
 
 ## Run
+```
 export ANTHROPIC_API_KEY=sk-ant-...
-
 ./mvnw spring-boot:run
-
+```
 - Chat UI: http://localhost:8080/
 - Triage Monitoring: http://localhost:8080/monitoring.html
+- Observability Dashboard: http://localhost:8080/observability.html
 - MCP endpoint: http://localhost:8080/mcp
+
+For full setup instructions (Windows and Ubuntu), starting background services,
+seeding mock data, test scenarios, and teardown steps, see
+[`RUNBOOK.md`](./RUNBOOK.md).
 
 ## Prompts
 Agent prompts and descriptions live in `src/main/resources/prompts/*.md` and are
